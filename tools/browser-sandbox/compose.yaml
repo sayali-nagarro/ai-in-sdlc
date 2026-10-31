@@ -1,0 +1,15 @@
+name: invoice-browser-sandbox
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: tools/browser-sandbox/Dockerfile
+    image: invoice-app-sandbox:local
+    networks: [sandbox]
+
+networks:
+  sandbox:
+    name: invoice-browser-sandbox
+    # No gateway: containers on this network cannot reach the internet or the host.
+    internal: true

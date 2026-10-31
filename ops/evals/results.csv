@@ -1,0 +1,73 @@
+run,case,model,prompt_version,verdict,finding_summary,confidence_reported,notes
+1,case-01,session-default,v1,caught,null Ids NullReferenceException; partial approval on mid-batch failure,high,
+1,case-02,session-default,v1,caught,SQL injection via customer and status,high,
+1,case-03,session-default,v1,caught,ToZero truncation changes totals by up to one cent,high,
+1,case-04,session-default,v1,correct_clean,no defects found,high,
+1,case-05,session-default,v1,caught,Delete missing RequireRole Admin,high,
+1,case-06,session-default,v1,correct_clean,no confirmed defects,low,4 hedged items incl. hunk header nit
+1,case-07,session-default,v1,caught,logs whole invoice and session,high,
+1,case-08,session-default,v1,caught,Dictionary not thread-safe; Add check-then-act race,high,
+1,case-09,session-default,v1,doc_catch,README claim that sign out/in resets data is unsupported,medium 65%,no code false alarm
+1,case-10,session-default,v1,caught,catch-all returns 200 completed,high,
+1,case-11,session-default,v1,correct_clean,no confirmed defects; two unverifiable risks raised (exception mapping; reason source),low,2 hedged items
+1,case-12,session-default,v1,caught,Handle() removed so 404/409/400 mapping lost; approval committed before SubmitAsync so a failure leaves the invoice Approved but unpaid,high,
+2,case-01,session-default,v1,caught,null Ids NullReferenceException; partial approval,high,
+2,case-02,session-default,v1,caught,SQL injection via customer and status,high,
+2,case-03,session-default,v1,caught,ToZero truncation changes totals,high,
+2,case-04,session-default,v1,correct_clean,no defects found,moderate-high,
+2,case-05,session-default,v1,caught,Delete missing RequireRole Admin,high,
+2,case-06,session-default,v1,correct_clean,no defects found,low,3 hedged items plus hunk header nit
+2,case-07,session-default,v1,caught,logs whole invoice and session,high,
+2,case-08,session-default,v1,caught,Dictionary not thread-safe; Add race,high,
+2,case-09,session-default,v1,doc_catch,README reset claim unsupported,medium 70%,no code false alarm
+2,case-10,session-default,v1,caught,catch-all returns 200 completed,high,
+2,case-11,session-default,v1,correct_clean,no confirmed defects; exception mapping 30% and check ordering 50% raised as risks,low-medium,3 hedged items
+2,case-12,session-default,v1,caught,Handle() removed; approval committed before SubmitAsync with no recovery; no idempotency,high,
+3,case-01,session-default,v1,caught,null Ids NullReferenceException; partial approval,high,
+3,case-02,session-default,v1,caught,SQL injection via customer and status,high,
+3,case-03,session-default,v1,caught,ToZero truncation changes totals,high,
+3,case-04,session-default,v1,correct_clean,no defects found,high,
+3,case-05,session-default,v1,caught,Delete missing RequireRole Admin,high,
+3,case-06,session-default,v1,correct_clean,no definite defects,low,5 hedged items incl. hunk header nit
+3,case-07,session-default,v1,caught,logs whole invoice and session,high,
+3,case-08,session-default,v1,caught,Dictionary not thread-safe; Add race,high,
+3,case-09,session-default,v1,doc_catch,README reset claim unsupported,medium 70%,no code false alarm
+3,case-10,session-default,v1,caught,catch-all returns 200 completed,high,
+3,case-11,session-default,v1,correct_clean,no confirmed defect; exception mapping 30%; error precedence 60% low severity; null not in test,low-medium,3 hedged items
+3,case-12,session-default,v1,caught,Handle() removed; approval committed before SubmitAsync so failure leaves invoice Approved unpaid; no idempotency,high,
+1,case-01,session-default,v2,caught,null Ids NullReferenceException; partial approval,high,
+1,case-02,session-default,v2,caught,SQL injection via customer and status,high,
+1,case-03,session-default,v2,caught,ToZero truncation changes totals,high,
+1,case-04,session-default,v2,correct_clean,no defects found,high,
+1,case-05,session-default,v2,caught,Delete missing RequireRole Admin,high,
+1,case-06,session-default,v2,correct_clean,no defects found,n/a,0 noise items
+1,case-07,session-default,v2,caught,logs whole session and invoice,medium,
+1,case-08,session-default,v2,caught,Dictionary not thread-safe; Add race,high,
+1,case-09,session-default,v2,doc_missed,README reset claim considered then withheld for lack of a trigger,n/a,true doc defect suppressed by v2
+1,case-10,session-default,v2,caught,catch-all returns 200 completed,high,
+1,case-11,session-default,v2,correct_clean,no defects found,high,0 noise items (one unverifiable mapping question not reported)
+1,case-12,session-default,v2,caught,Handle() removed; approval committed before SubmitAsync so failure leaves invoice Approved unpaid,high,
+2,case-01,session-default,v2,caught,null Ids NullReferenceException; partial approval,high,
+2,case-02,session-default,v2,caught,SQL injection via customer and status,high,
+2,case-03,session-default,v2,caught,ToZero truncation changes totals,high,
+2,case-04,session-default,v2,correct_clean,no defects found,high,
+2,case-05,session-default,v2,caught,Delete missing RequireRole Admin,high,
+2,case-06,session-default,v2,correct_clean,no defects found,n/a,0 noise items
+2,case-07,session-default,v2,caught,logs whole session and invoice,medium,
+2,case-08,session-default,v2,caught,Dictionary not thread-safe; Add race,high,
+2,case-09,session-default,v2,doc_catch,README reset claim unsupported,low 25%,headline said no confirmed defects
+2,case-10,session-default,v2,caught,catch-all returns 200 completed,high,
+2,case-11,session-default,v2,correct_clean,no defects found,high,0 noise items
+2,case-12,session-default,v2,caught,Handle() removed; approval committed before SubmitAsync so failure leaves invoice Approved unpaid,high,
+3,case-01,session-default,v2,caught,null Ids NullReferenceException; partial approval,high,
+3,case-02,session-default,v2,caught,SQL injection via customer and status,high,
+3,case-03,session-default,v2,caught,ToZero truncation changes totals,high,
+3,case-04,session-default,v2,correct_clean,no defects found,high,
+3,case-05,session-default,v2,caught,Delete missing RequireRole Admin,high,
+3,case-06,session-default,v2,correct_clean,no defects found,n/a,0 noise items
+3,case-07,session-default,v2,caught,logs whole session and invoice,medium 50%,
+3,case-08,session-default,v2,caught,Dictionary not thread-safe; Add race,high,
+3,case-09,session-default,v2,doc_catch,README reset claim unsupported,low 25%,headline said no confirmed defects
+3,case-10,session-default,v2,caught,catch-all returns 200 completed,high,
+3,case-11,session-default,v2,correct_clean,no defects found,high,0 noise items
+3,case-12,session-default,v2,caught,Handle() removed; approval committed before SubmitAsync with no recovery,high,

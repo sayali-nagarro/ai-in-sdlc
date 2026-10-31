@@ -1,0 +1,36 @@
+diff --git a/backend/src/InvoiceApp.Domain/ApprovalService.cs b/backend/src/InvoiceApp.Domain/ApprovalService.cs
+--- a/backend/src/InvoiceApp.Domain/ApprovalService.cs
++++ b/backend/src/InvoiceApp.Domain/ApprovalService.cs
+@@ -43,6 +43,11 @@ public Invoice Reject(string invoiceId, string username, string reason)
+ {
++    if (string.IsNullOrWhiteSpace(reason))
++    {
++        throw new ArgumentException("A reason is required to reject an invoice.", nameof(reason));
++    }
++
+     var invoice = Find(invoiceId);
+     EnsurePending(invoice);
+
+diff --git a/backend/tests/InvoiceApp.Tests/ApprovalServiceTests.cs b/backend/tests/InvoiceApp.Tests/ApprovalServiceTests.cs
+--- a/backend/tests/InvoiceApp.Tests/ApprovalServiceTests.cs
++++ b/backend/tests/InvoiceApp.Tests/ApprovalServiceTests.cs
+@@ -58,4 +58,16 @@ public class ApprovalServiceTests
+     {
+         var service = ServiceFor(InvoiceWith("INV-1", InvoiceStatus.PendingApproval));
+
+         var result = service.Reject("INV-1", "demo.approver", "Incorrect amount");
+
+         Assert.Equal(InvoiceStatus.Rejected, result.Status);
+     }
++
++    [Theory]
++    [InlineData("")]
++    [InlineData("   ")]
++    public void Reject_RequiresAReason(string reason)
++    {
++        var service = ServiceFor(InvoiceWith("INV-1", InvoiceStatus.PendingApproval));
++
++        Assert.Throws<ArgumentException>(
++            () => service.Reject("INV-1", "demo.approver", reason));
++    }
+ }

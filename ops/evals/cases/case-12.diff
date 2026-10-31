@@ -1,0 +1,15 @@
+diff --git a/backend/src/InvoiceApp.Api/Controllers/ApprovalsController.cs b/backend/src/InvoiceApp.Api/Controllers/ApprovalsController.cs
+--- a/backend/src/InvoiceApp.Api/Controllers/ApprovalsController.cs
++++ b/backend/src/InvoiceApp.Api/Controllers/ApprovalsController.cs
+@@ -18,8 +18,12 @@ public class ApprovalsController : ApiControllerBase
+     [HttpPost("{invoiceId}/approve")]
+-    public ActionResult<Invoice> Approve(string invoiceId) =>
+-        Handle(() => _approvals.Approve(invoiceId, HttpContext.GetSession().Username));
++    public async Task<ActionResult<Invoice>> Approve(string invoiceId)
++    {
++        var invoice = _approvals.Approve(invoiceId, HttpContext.GetSession().Username);
++
++        await _payEx.SubmitAsync(invoice);
++
++        return Ok(invoice);
++    }
