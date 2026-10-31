@@ -1,26 +1,61 @@
-# Review evaluation: baseline runs and changed-prompt comparison
+# Review evaluation: recorded results and provenance audit
 
-Raw rows: [ops/evals/results.csv](../../ops/evals/results.csv) (72 rows: 12 cases x 3 runs x 2 prompts; the 12 rows for case-11 and case-12 are from the re-run after those cases were replaced).
+Recorded rows: [ops/evals/results.csv](../../ops/evals/results.csv) (72 rows:
+12 cases x 3 labeled runs x 2 prompt versions). These are verdicts and finding
+summaries, not the complete model outputs or session transcripts. I checked the
+CSV rows and case diffs during this handover; I did **not** rerun the model
+evaluation.
 
 ## Handover run set
 
-The requested minimum comparison is three baseline runs plus a separate run with one changed variable. The controlled variable is the prompt; the model is held at the session default and is not identified more specifically in the raw rows.
+The dataset contains the three baseline-labeled v1 runs and a candidate fourth
+comparison (v2 run 1), plus two further v2 runs. That four-run subset has the
+intended single prompt-text change, but the CSV has no timestamps or session
+IDs. Therefore it cannot establish that v2 run 1 was chronologically the
+fourth run, or verify that the same model/configuration was used.
 
-| Role in handover | Rows selected | Variable changed | Recorded outcome |
-| --- | --- | --- | --- |
-| Baseline | v1, runs 1–3, all 12 cases | None; baseline prompt | 24/24 defect catches, 9/9 clean cases correctly clean, 0/9 false alarms; case 09 is reported separately |
-| Changed-variable run | v2, run 1, all 12 cases | Added the concrete-trigger sentence described below | 8/8 defects caught, 3/3 clean cases correctly clean, 0/3 false alarms; case 09's README finding was withheld |
+| Selected run | Rows | Recorded outcome |
+|---|---|---|
+| Baseline 1 | v1 run 1, 12 cases | 8/8 defects caught; 0 missed; 3/3 clean cases correct; 0 false alarms; case 09 doc finding recorded separately |
+| Baseline 2 | v1 run 2, 12 cases | Same rates; case 09 doc finding recorded separately |
+| Baseline 3 | v1 run 3, 12 cases | Same rates; case 09 doc finding recorded separately |
+| Changed-variable comparison | v2 run 1, 12 cases | 8/8 defects caught; 0 missed; 3/3 clean cases correct; 0 false alarms; case 09 doc finding withheld |
 
-The raw file also contains v2 runs 2 and 3. They are additional replications, not required to interpret the selected three-plus-one comparison; the full-condition summary below includes all six runs per case. The three repetitions reuse identical diffs and are not independent samples. The exact model identity and timestamps for individual review calls were not captured.
+The raw file also contains v2 runs 2 and 3. Rates recomputed across all three
+runs per condition are 24/24 defect catches and 0/9 false alarms for each
+prompt; case 09 was named in 3/3 v1 runs and 2/3 v2 runs. Repeated reviews of
+identical diffs are not independent samples.
 
 ## Setup
 
-- The ten original cases in `ops/evals/cases` plus two supplied by the repository owner (`case-11`, `case-12`). Both were re-run after replacing earlier cases that I had written myself.
-- Every case was reviewed in a fresh sub-agent session that was given only the diff and the prompt, with an instruction not to use tools.
-- Same session-default model for every call, as recorded by the runner. The model was not varied, but its exact identity was not captured in the results rows.
+- The ten original cases in `ops/evals/cases` plus two owner-provided cases (`case-11`, `case-12`).
+- Earlier session notes say each review used a fresh sub-agent session with only the diff and prompt and no tools. The CSV has no session IDs, outputs, or per-run configuration, so this setup cannot now be independently verified.
+- The `model` column contains only `session-default`; this is not an exact model identifier. No individual review timestamps, model version, configuration, or raw output reference is present in the CSV.
 - **v1** is the exact prompt from `ops/evals/README.md`.
 - **v2** is v1 plus one sentence: "For each finding also give a concrete input or sequence of events that triggers the failure; if you cannot name one, do not report it."
-- I wrote the v2 sentence and the hypothesis before running v2: false alarms should fall and the caught rate should not. I chose it because it does not name any defect class, so it cannot be tuned to these cases.
+- The v2 prompt differs from v1 by that one sentence. Prior notes say the hypothesis was written before v2, but the timestamped preregistration is not in this repository.
+
+## Case-set validation
+
+I inspected all 12 diffs against the recorded truth key. Cases 01–10 are the
+original set; 11–12 are the owner-provided additions. This validates the
+case content and whether the recorded labels are plausible; it does not
+independently validate historical model responses or authorship of the key.
+
+| Case | Review of diff and label |
+|---|---|
+| 01 | Defect: nullable `Ids` is dereferenced and earlier approvals can persist if a later item fails. |
+| 02 | Defect: customer/status values are interpolated into SQL. |
+| 03 | Defect: `ToZero` truncation changes monetary calculations; the diff is a standalone snippet and does not match the current `DiscountCalculator` implementation. |
+| 04 | Clean: consistent repository-field rename. |
+| 05 | Defect: destructive `Delete` endpoint lacks the Admin role restriction. |
+| 06 | Clean against current implementation: added tests exercise existing reason validation and approval metadata behavior. |
+| 07 | Defect: logs serialize invoice and session/user objects. |
+| 08 | Defect: replacing a concurrent collection with unsynchronized `Dictionary` and check-then-add creates races; this snippet does not match the current list-and-lock implementation. |
+| 09 | Ambiguous/documentation issue: code diff is clean, but README claims sign-out/sign-in resets singleton in-memory data. Kept separate from code defect/clean rates. |
+| 10 | Defect: catch-all returns success-shaped HTTP 200 on failure. |
+| 11 | Clean: test-only whitespace-reason cases match validation already present in the current `ApprovalService`. |
+| 12 | Defect: approval commits before external payment succeeds, and the controller bypasses common error mapping. |
 
 ## Truth key (written before scoring, kept outside the workspace until the runs finished)
 
@@ -44,18 +79,20 @@ Scoring rules, fixed before the runs:
 - A clean case is a **false alarm** only if the review asserts a code defect at medium confidence or higher. Items it hedges as assumptions it cannot check do not count. I record them separately as "noise items".
 - Case 09 is reported separately. It is not counted as caught or as a false alarm, because I am not certain the case author intended the README line to be a defect.
 
-## Results
+## Recorded results and rates
 
-| | v1 (baseline) | v2 (trigger required) |
-| --- | --- | --- |
-| Defect cases caught (8 cases x 3 runs) | 24 / 24 | 24 / 24 |
-| Missed | 0 | 0 |
-| Clean cases, correctly clean (3 cases x 3 runs: 04, 06, 11) | 9 / 9 | 9 / 9 |
-| False alarms | 0 / 9 | 0 / 9 |
-| Case 09, README defect named | 3 / 3 | 2 / 3 |
-| Noise items on cases 06 and 11 (my count, approximate) | about 21 over 6 reviews | 0 over 6 reviews |
+| Metric across recorded three runs | v1 baseline | v2 changed prompt |
+|---|---:|---:|
+| Defect catches (8 cases x 3) | 24/24 (100%) | 24/24 (100%) |
+| Misses among labeled defect cases | 0/24 | 0/24 |
+| Clean cases correctly clean (3 cases x 3) | 9/9 | 9/9 |
+| False alarms on labeled clean cases | 0/9 (0%) | 0/9 (0%) |
+| Ambiguous case 09 README finding named | 3/3 | 2/3 |
+| Noise items on cases 06/11, approximate historical score | ~21/6 reviews | 0/6 reviews |
 
-95% Wilson intervals: caught 24/24 is 86% to 100% for both prompts. False alarms are 0/9 (0% to 30%) for both.
+The recorded 95% Wilson intervals are 86–100% for 24/24 catches and 0–30% for
+0/9 false alarms. These are descriptive of this small, repeated case set, not
+evidence of production review performance.
 
 For transparency: before `case-11` and `case-12` were replaced, my own earlier `case-12` (a length limit) produced one borderline false alarm under v2 (a UTF-16 code-unit nit stated as a finding). That case is no longer in the data, so the table above does not include it. Replacing the cases changed that result from 1/9 to 0/9, which shows how much a single case can move these rates.
 
@@ -70,14 +107,15 @@ For transparency: before `case-11` and `case-12` were replaced, my own earlier `
 
 Decision: keep v1 as the baseline for recall. v2 looks promising for reducing noise, and it did not lose recall on the defect cases, but the evidence is one suppressed true finding against about 21 fewer speculative items on a set this easy. Do not adopt it on this evidence alone.
 
-## Limitations
+## Evidence limits and remaining work
 
-1. **The set is too easy for this model.** 100% recall and zero false alarms mean this set cannot rank prompts or models. The next step is harder, subtler cases: a defect that needs knowledge of code outside the diff, an off-by-one, or a state-machine bug.
-2. **Context leak.** The sub-agents have the workspace instructions (`AGENTS.md`) attached automatically, and several findings cite its conventions (for example, "destructive actions are Admin only" for case 05). So the context file was effectively on for both prompts. A true no-context run would need a clean workspace.
-3. **Case 11 and 12 come from the repository owner,** and are real changes. Case 11 is a clean change that the current code already contains (`ApprovalService.cs:43-48`). I labelled both myself, and nothing independent confirms the labels.
-4. **I scored my own cases and the truth key.** The sub-agent labels from my first exploration pass were partly wrong (for example, it called `ToZero` banker's rounding), so I re-derived the key. A second scorer would make the key more trustworthy.
-5. Noise-item counts are my approximate reading of the outputs, not a tool-computed number.
-6. Four of the ten original cases were "shown in the session". I did not know which, so all ten were run.
+1. The logged results satisfy a selectable three-baseline-plus-one-prompt-change comparison, but missing timestamps/session IDs prevent proving chronological run order or actual control of model/configuration. Do not claim a verified fourth sequential run.
+2. The required per-review timestamps, exact model identifiers, configuration, prompts/outputs, and session references are not in the raw CSV. They cannot be recreated from verdict summaries without fabricating evidence.
+3. Prior notes report automatic workspace instructions (`AGENTS.md`) were present, so the review context was not isolated to just the diff/prompt.
+4. The two added cases were supplied by the repository owner; the truth key was scored by the same author and was not independently adjudicated.
+5. Approximate noise counts are human estimates, not tool-computed measurements.
+6. Prior notes say four original cases were previously shown in a session; which cases is not recorded.
+7. A new fully auditable evaluation remains outstanding. For any rerun, save each exact prompt and output, UTC timestamp, exact model/version, session ID, tool/context configuration, and scoring decision before aggregating rates.
 
 ## Case diffs do not match the code
 

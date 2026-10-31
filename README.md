@@ -47,12 +47,13 @@ AGENTS.md                 conventions for AI coding agents
 - Demo video (8 to 10 minutes): **TODO: add link after upload** (script: [docs/demo-script.md](docs/demo-script.md))
 - [As-built architecture](docs/architecture/as-built.md) and [target state](docs/architecture/target-state.md)
 - [Decision record: exactly-once PayEx submission](docs/adr/0001-exactly-once-payex-submission.md)
-- [Autonomy policy](docs/policy/incident-first-response-autonomy.md)
+- [Autonomy policy](docs/policy/incident-first-response-autonomy.md) ([one-page PDF](docs/policy/incident-first-response-autonomy.pdf))
 - [Review eval](docs/eval/review-eval.md) and [raw results](ops/evals/results.csv)
 - [Risk audit](docs/security/risk-audit.md)
 - [Baseline measurement plan](docs/measurement/baseline.md)
-- [AI augmentation log](docs/ai-augmentation-log.md)
-- [Handover checklist](docs/handover-checklist.md) and [structured AI session log](docs/ai-augmentation-log.jsonl)
+- [AI augmentation log](docs/ai-augmentation-log.md), [historical structured log](docs/ai-augmentation-log.jsonl), and [verification/session entries](docs/ai-augmentation-verification.jsonl)
+- [Handover checklist](docs/handover-checklist.md)
+- [Final verification report](docs/final-verification-report.md)
 
 ## Use cases
 

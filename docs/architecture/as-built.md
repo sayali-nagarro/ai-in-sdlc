@@ -1,140 +1,62 @@
-# As-built architecture (code as of this commit)
+# As-built architecture (application source)
 
-Rendered images: [container view](diagrams/as-built-container.png), [sequence](diagrams/as-built-sequence.png)
+This view describes only `backend/src`; it does not use the planned production
+scenario in `ops/`. The canonical diagram sources are:
 
-Everything here is read from `backend/src`. Nothing from `ops/` is used, because `ops/` describes the planned deployment. Every element cites a file and line; anything not directly shown in code is listed under "Inferred".
+- [Container diagram](./as-built-container.mmd) — [rendered image](./diagrams/as-built-container.png)
+- [Approval sequence](./as-built-approval-sequence.mmd) — [rendered image](./diagrams/as-built-sequence.png)
 
-## Container view
+Every diagram node and interaction has a citation ID mapped to a source file,
+symbol, and line in the [architecture citation register](./architecture-citations.md).
+Items not directly evidenced are listed in
+[architecture-inferences.md](./architecture-inferences.md).
+Both sources rendered successfully with Mermaid CLI 11.4.2 on 2026-10-31;
+the exact render commands are recorded in the
+[final verification report](../final-verification-report.md).
 
-```mermaid
-flowchart LR
-    user([Approver / Admin<br/>browser])
+## Verified implementation summary
 
-    subgraph proc["Single ASP.NET Core 8 process (Program.cs)"]
-        static["Static web UI<br/>wwwroot/app.js, index.html<br/>UseDefaultFiles + UseStaticFiles"]
-        mw["SessionAuthMiddleware<br/>InvokeAsync"]
-        auth["AuthController<br/>Login / Logout"]
-        inv["InvoicesController<br/>GetAll, GetById, Create, Submit, Delete"]
-        apr["ApprovalsController<br/>Approve, Reject<br/>RequireRole Approver, Admin"]
-        role["RequireRoleAttribute<br/>OnActionExecuting"]
-        base["ApiControllerBase.Handle<br/>maps exceptions to 404/409/400"]
-        sessions[("SessionStore<br/>ConcurrentDictionary, singleton")]
-        svc["ApprovalService (Domain)<br/>Submit, Approve, Reject"]
-        repoI{{"IInvoiceRepository<br/>(Domain interface)"}}
-        mem[("InMemoryInvoiceRepository<br/>List + lock, singleton")]
-        cfg["DemoUsersOptions<br/>appsettings.json Users"]
-    end
+| Area | Source evidence | What exists |
+|---|---|---|
+| Web/API process | [Program.cs](../../backend/src/InvoiceApp.Api/Program.cs), lines 6-24 | ASP.NET Core app serves static files and maps controllers. Deployment topology is not established by this source. |
+| Sign-in and sessions | [SessionAuthMiddleware.cs](../../backend/src/InvoiceApp.Api/Auth/SessionAuthMiddleware.cs), lines 16-37; [SessionStore.cs](../../backend/src/InvoiceApp.Api/Auth/SessionStore.cs), lines 7-21 | Bearer-token sessions are held in a concurrent in-memory dictionary. |
+| Authorization | [RequireRoleAttribute.cs](../../backend/src/InvoiceApp.Api/Auth/RequireRoleAttribute.cs), lines 8-26; [ApprovalsController.cs](../../backend/src/InvoiceApp.Api/Controllers/ApprovalsController.cs), lines 9-27 | Approval endpoints require Approver or Admin; role filter rejects disallowed roles. |
+| Invoice lifecycle | [ApprovalService.cs](../../backend/src/InvoiceApp.Domain/ApprovalService.cs), lines 16-58 | Submit, approve, and reject transitions and validation are in Domain. |
+| Persistence | [IInvoiceRepository.cs](../../backend/src/InvoiceApp.Domain/IInvoiceRepository.cs), lines 3-10; [InMemoryInvoiceRepository.cs](../../backend/src/InvoiceApp.Api/InMemoryInvoiceRepository.cs), lines 6-65 | Domain defines a repository interface; the only current implementation is a process-local list guarded per operation by a lock. |
+| Payment/persistence infrastructure | Backend source search; see [target state](./target-state.md) | No SQL persistence, PayEx client, payment worker, or outbox is implemented in this checkout. |
 
-    user -->|"HTTP GET /"| static
-    user -->|"HTTP /api/* + Bearer token"| mw
-    mw -->|"Get(token)"| sessions
-    mw --> auth
-    mw --> inv
-    mw --> apr
-    auth -->|"Create / Remove"| sessions
-    auth -->|"checks credentials"| cfg
-    inv -.->|"filter"| role
-    apr -.->|"filter"| role
-    inv --> base
-    apr --> base
-    base --> svc
-    inv -->|"GetAll, GetById, Add, Remove"| repoI
-    svc -->|"GetById, Update"| repoI
-    repoI --- mem
-```
+## Corrections to earlier agent claims
 
-| Element | Citation |
-| --- | --- |
-| Static web UI | `Program.cs:19-20` (`UseDefaultFiles`, `UseStaticFiles`); `wwwroot/app.js:19` calls `fetch('/api...')` with `Authorization: Bearer` at `:18` |
-| `SessionAuthMiddleware` | `Auth/SessionAuthMiddleware.cs:4`, `InvokeAsync` at `:16`, registered at `Program.cs:21` |
-| `SessionStore` | `Auth/SessionStore.cs:7`, `ConcurrentDictionary` at `:9`, singleton at `Program.cs:13` |
-| `AuthController` | `Controllers/AuthController.cs:9`, `Login` `:24`, `Logout` `:39` |
-| `DemoUsersOptions` | `Auth/UserSession.cs:12`, bound at `Program.cs:12`, values in `appsettings.json:9-12` |
-| `InvoicesController` | `Controllers/InvoicesController.cs:9`; `Delete` has `[RequireRole("Admin")]` at `:73` |
-| `ApprovalsController` | `Controllers/ApprovalsController.cs:10`, class-level `[RequireRole("Approver", "Admin")]` at `:9` |
-| `RequireRoleAttribute` | `Auth/RequireRoleAttribute.cs:8`, `OnActionExecuting` `:17` |
-| `ApiControllerBase.Handle` | `Controllers/ApiControllerBase.cs:9` |
-| `ApprovalService` | `Domain/ApprovalService.cs:7`, `Submit` `:16`, `Approve` `:31`, `Reject` `:43`; scoped at `Program.cs:15` |
-| `IInvoiceRepository` | `Domain/IInvoiceRepository.cs:3` |
-| `InMemoryInvoiceRepository` | `Api/InMemoryInvoiceRepository.cs:6`, `_lock` `:8`, `List<Invoice>` `:11`; singleton at `Program.cs:14` |
-
-## Sequence: sign in, then approve
-
-```mermaid
-sequenceDiagram
-    actor U as Approver (browser)
-    participant MW as SessionAuthMiddleware
-    participant AC as AuthController
-    participant SS as SessionStore
-    participant PC as ApprovalsController
-    participant RR as RequireRoleAttribute
-    participant H as ApiControllerBase.Handle
-    participant AS as ApprovalService
-    participant R as InMemoryInvoiceRepository
-
-    U->>MW: POST /api/auth/login
-    Note over MW: path is /api/auth/login, so no session required (SessionAuthMiddleware.cs:19)
-    MW->>AC: Login(request)
-    AC->>AC: match username and password in DemoUsersOptions (AuthController.cs:26)
-    AC->>SS: Create(UserSession)
-    SS-->>AC: token
-    AC-->>U: 200 token, username, role
-
-    U->>MW: POST /api/approvals/{id}/approve  (Bearer token)
-    MW->>SS: Get(token)
-    SS-->>MW: UserSession or null
-    alt no session
-        MW-->>U: 401
-    else session found
-        MW->>PC: Approve(invoiceId), session in HttpContext.Items
-        PC->>RR: OnActionExecuting
-        alt role not Approver or Admin
-            RR-->>U: 403
-        else allowed
-            PC->>H: Handle(() => Approve(...))
-            H->>AS: Approve(invoiceId, username)
-            AS->>R: GetById(invoiceId)
-            R-->>AS: live Invoice object
-            AS->>AS: EnsurePending (ApprovalService.cs:34)
-            AS->>AS: set Status, DecidedBy, DecidedAt (:36-38)
-            AS->>R: Update(invoice)
-            AS-->>H: Invoice
-            H-->>U: 200 Invoice, or 404 / 409 / 400
-        end
-    end
-```
-
-## Inferred (not directly shown in code)
-
-- The process is a single instance. The code never states it. The in-process `lock` and singleton registrations only work correctly for one instance, and nothing configures scale-out.
-- `GetById` returns the stored object itself, so `Approve` mutates the repository's own instance before `Update` is called. This follows from `List<Invoice>` holding references (`InMemoryInvoiceRepository.cs:25-28`), and I did not run it to confirm.
-- Two concurrent `Approve` calls on the same invoice can both pass `EnsurePending`. This is a reading of `ApprovalService.cs:33-39`, not a test result.
-- Tokens never expire. This is inferred from the absence of any expiry in `SessionStore`, so it is a claim about missing code.
-- No logging, audit trail, health endpoint, or HTTPS redirect exists. This is based on a search of `Program.cs` and the services, so it is an absence claim.
-- The browser keeps the token in `sessionStorage` (`wwwroot/app.js:4`, `:108`).
-
-## Corrections to what the agent first reported
-
-An earlier exploration pass was checked against the code. These claims were wrong or misleading, and are corrected here.
-
-| Earlier claim | What the code shows |
-| --- | --- |
-| `FakeInvoiceRepository` lives under `backend/src/InvoiceApp.Tests` | It is under `backend/tests/InvoiceApp.Tests/FakeInvoiceRepository.cs`. `Update` is a no-op there (`:15`), which is true. |
-| `Program.cs:10` reads the demo users | It is `Program.cs:12`. |
-| Eval cases 03 and 08 modify `DiscountCalculator.Apply` and a `ConcurrentDictionary` repository | The real `DiscountCalculator` is an instance class with `ApplyDiscount` (`Domain/DiscountCalculator.cs:31`), and the real repository is `List<Invoice>` plus `lock`. The case diffs do not apply to this tree. Treat them as stand-alone snippets. |
-| "ToZero is banker's rounding" | `MidpointRounding.ToZero` truncates. Banker's rounding is `ToEven`. |
-| The incident packs describe code in this repo | `PayExClient`, Service Bus publishing and the notification worker do not exist in `backend/`. They are the planned system. |
-| `ApprovalService` has event hooks that are missing | True, but only in the sense that nothing publishes events. The class has no dependency except `IInvoiceRepository`. |
-| The CI pipeline takes about 35 to 42 minutes | Summing `ops/pipeline/run-timings.csv` gives a mean of 31.3 minutes and a range of 28.4 to 35.1 (see [baseline.md](../measurement/baseline.md)). |
+| Earlier claim | Verified correction |
+|---|---|
+| `FakeInvoiceRepository` is under `backend/src` | It is under `backend/tests/InvoiceApp.Tests`; its `Update` is a no-op. |
+| Demo users are read at `Program.cs:10` | Binding is at `Program.cs:12`. |
+| Evaluation cases 03 and 08 describe the current calculator/repository | They are standalone diffs. The current calculator is an instance class with `ApplyDiscount`; the repository uses `List<Invoice>` and a lock. |
+| `MidpointRounding.ToZero` is banker's rounding | It truncates; banker's rounding is `ToEven`. |
+| The incident packs prove current app integrations | PayEx, Service Bus publishing, and notification workers are absent from backend source. `ops/` is scenario evidence. |
+| CI takes 35–42 minutes | `ops/pipeline/run-timings.csv` is invented scenario data, not this repository's CI timing. See [measured evidence](../measurement/baseline.md). |
 
 ## Architecture test
 
-Rule, from `AGENTS.md`: business rules live in the Domain project, with no web or storage code. It is encoded in [ArchitectureTests.cs](../../backend/tests/InvoiceApp.Tests/ArchitectureTests.cs): the Domain assembly must not reference `InvoiceApp.Api`, ASP.NET Core, Entity Framework, SQL client or Service Bus assemblies.
+The test [ArchitectureTests.cs](../../backend/tests/InvoiceApp.Tests/ArchitectureTests.cs)
+asserts that the Domain assembly does not reference API, web, ORM, SQL-client,
+or Service Bus assemblies.
 
-Command: `dotnet test backend/InvoiceApp.sln --filter ArchitectureTests`
+Command:
 
-**Status: run and passing.** On 2026-10-24, with .NET SDK 8.0.426 installed user-local, `dotnet test backend/InvoiceApp.sln --filter ArchitectureTests` gave `Passed: 1, Failed: 0`, and the full suite gave `Passed: 8, Failed: 0`.
+```sh
+dotnet test backend/tests/InvoiceApp.Tests/InvoiceApp.Tests.csproj --filter FullyQualifiedName~ArchitectureTests
+```
 
-**Failure case demonstrated.** With `<FrameworkReference Include="Microsoft.AspNetCore.App" />` added to `InvoiceApp.Domain.csproj` and a property of type `Microsoft.AspNetCore.Http.HttpContext` added to `Invoice`, the test failed with `InvoiceApp.Domain must not reference: Microsoft.AspNetCore.Http.Abstractions` (`Failed: 1, Passed: 0`). Both changes were then reverted and the full suite passed again (8 of 8), with `git status` showing only the new test file. To repeat it, make the same two edits, run the command above, and revert.
+The focused command was run during this verification with .NET SDK 8.0.427;
+it passed 1/1. The raw console output is retained in
+[architecture-test-output.txt](./architecture-test-output.txt). The public GitHub Actions run
+[41197817586](https://github.com/sayali-nagarro/ai-in-sdlc/actions/runs/41197817586)
+passed the full solution at commit `8301b2280b12e55202df93a91a5ce72b119ad25a`;
+the workflow test was not filtered to this test. In the current verification
+environment the SDK was installed temporarily under `/tmp/dotnet` to run the
+focused test; the temporary installation is not part of the repository.
 
-Limit to keep in mind: the test only sees assemblies the compiler actually references, so an unused package reference would not trip it. Also, `dotnet` is installed at `~/.dotnet`, so in a new terminal run `export PATH="$HOME/.dotnet:$PATH"` first.
+Earlier documentation says a deliberately introduced ASP.NET Core reference
+made the test fail and was then reverted. That historical demonstration is
+recorded but was not reproduced during this verification.

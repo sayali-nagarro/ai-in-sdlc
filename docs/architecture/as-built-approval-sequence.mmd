@@ -1,0 +1,110 @@
+sequenceDiagram
+    autonumber
+    actor User as Signed-in browser user
+    participant UI as Browser UI (app.js)
+    participant API as ASP.NET Core API pipeline
+    participant MW as SessionAuthMiddleware
+    participant SS as SessionStore
+    participant IC as InvoicesController
+    participant AC as ApprovalsController
+    participant RF as RequireRoleAttribute
+    participant H as ApiControllerBase.Handle
+    participant AS as ApprovalService
+    participant RI as IInvoiceRepository
+    participant MR as InMemoryInvoiceRepository
+
+    User->>UI: Click "Submit for approval" [S01]
+    UI->>API: POST /api/invoices/{id}/submit with bearer token [S02]
+    API->>MW: InvokeAsync(HttpContext) [S03]
+    MW->>SS: Get(token) [S04]
+    alt No valid session
+        MW-->>UI: 401 Unauthorized and request stops [S05]
+    else Valid session
+        MW->>API: Continue with UserSession in HttpContext.Items [S06]
+        API->>IC: Submit(id) [S07]
+        IC->>H: Handle(() => ApprovalService.Submit(id)) [S08]
+        H->>AS: Submit(id) [S09]
+        AS->>RI: GetById(id) [S10]
+        RI->>MR: GetById(id), in-memory lookup [S11]
+        MR-->>RI: Invoice or null [S12]
+        RI-->>AS: Invoice or null [S13]
+        alt Invoice does not exist
+            AS-->>H: KeyNotFoundException [S14]
+            H-->>UI: 404 Not Found [S15]
+        else Invoice is not Draft
+            AS-->>H: InvalidOperationException [S16]
+            H-->>UI: 409 Conflict [S17]
+        else Invoice is Draft
+            AS->>AS: Set status to PendingApproval [S18]
+            AS->>RI: Update(invoice) [S19]
+            RI->>MR: Replace matching list entry [S20]
+            AS-->>H: Updated invoice [S21]
+            H-->>UI: 200 OK with invoice [S22]
+            UI->>User: Refresh invoice list and show PendingApproval [S23]
+        end
+
+        User->>UI: Click Approve or Reject [S24]
+        UI->>API: POST /api/approvals/{id}/approve or /reject [S25]
+        API->>MW: InvokeAsync(HttpContext) [S26]
+        MW->>SS: Get(token) [S27]
+        alt No valid session
+            MW-->>UI: 401 Unauthorized and request stops [S28]
+        else Valid session
+            MW->>API: Continue with UserSession in HttpContext.Items [S29]
+            API->>RF: Apply RequireRole("Approver", "Admin") [S30]
+            alt Role is not allowed
+                RF-->>UI: 403 Forbidden [S31]
+            else Role is allowed
+                alt Approve endpoint
+                    API->>AC: Approve(id) [S32]
+                    AC->>H: Handle(() => Approve(id, username)) [S33]
+                    H->>AS: Approve(id, username) [S34]
+                    AS->>RI: GetById(id) [S35]
+                    RI->>MR: GetById(id) [S36]
+                    MR-->>RI: Invoice or null [S37]
+                    RI-->>AS: Invoice or null [S38]
+                    alt Invoice does not exist
+                        AS-->>H: KeyNotFoundException [S39]
+                        H-->>UI: 404 Not Found [S40]
+                    else Invoice is not PendingApproval
+                        AS->>AS: EnsurePending throws InvalidOperationException [S41]
+                        AS-->>H: InvalidOperationException [S42]
+                        H-->>UI: 409 Conflict [S43]
+                    else Invoice is PendingApproval
+                        AS->>AS: Set Approved, DecidedBy, DecidedAt [S44]
+                        AS->>RI: Update(invoice) [S45]
+                        RI->>MR: Replace matching list entry [S46]
+                        AS-->>H: Approved invoice [S47]
+                        H-->>UI: 200 OK with invoice [S48]
+                    end
+                else Reject endpoint
+                    API->>AC: Reject(id, reason) [S49]
+                    AC->>H: Handle(() => Reject(id, username, reason)) [S50]
+                    H->>AS: Reject(id, username, reason) [S51]
+                    alt Reason is blank
+                        AS-->>H: ArgumentException [S52]
+                        H-->>UI: 400 Bad Request [S53]
+                    else Reason is present
+                        AS->>RI: GetById(id) [S54]
+                        RI->>MR: GetById(id) [S55]
+                        MR-->>RI: Invoice or null [S56]
+                        RI-->>AS: Invoice or null [S57]
+                        alt Invoice does not exist
+                            AS-->>H: KeyNotFoundException [S58]
+                            H-->>UI: 404 Not Found [S59]
+                        else Invoice is not PendingApproval
+                            AS->>AS: EnsurePending throws InvalidOperationException [S60]
+                            AS-->>H: InvalidOperationException [S61]
+                            H-->>UI: 409 Conflict [S62]
+                        else Invoice is PendingApproval
+                            AS->>AS: Set Rejected, DecidedBy, DecidedAt, DecisionNote [S63]
+                            AS->>RI: Update(invoice) [S64]
+                            RI->>MR: Replace matching list entry [S65]
+                            AS-->>H: Rejected invoice [S66]
+                            H-->>UI: 200 OK with invoice [S67]
+                        end
+                    end
+                end
+            end
+        end
+    end

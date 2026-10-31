@@ -24,17 +24,24 @@ that decides whether anyone keeps using the reviewer.
 1. Start a fresh session for each case. Context from a previous case will
    change the answer.
 2. Give the agent the case diff and the review prompt below. Nothing else.
-3. Record what it reported in `results.csv`, using `results-template.csv` as
-   the 12-case, three-run starter for one prompt condition. Duplicate and
-   update `prompt_version` for a changed-variable condition.
-4. Repeat the whole set three times. Output varies between runs, so a single
-   pass gives you an anecdote rather than a rate.
-5. To meet the handover comparison, first complete three runs of the baseline
-   prompt, then run the full set once with exactly one changed variable. Record
-   that changed-variable run separately. Further repetitions are useful but
-   do not replace labeling the designated comparison. The completed dataset
-   contains three runs for each of v1 and v2; see the handover table in
-   `../../docs/eval/review-eval.md`.
+3. Use `evidence-template.csv` to record provenance for every case: exact UTC
+   time, fresh session ID, provider/model/version, configuration/context/tools,
+   prompt and diff hashes, exact prompt/output references, and scorer. Keep
+   unmodified raw outputs; `results.csv` is a verdict-summary file, not a
+   transcript archive.
+4. Run all 12 cases in fresh sessions three times with the baseline prompt.
+   Then run all 12 once more with exactly one predeclared variable changed.
+   Keep model, version, context, tools, scoring rules, and case diffs fixed.
+   Label this as run 4 only after timestamped evidence establishes the order.
+5. Score before aggregation. Record caught/missed on the eight defect cases
+   and false alarms on the three clean cases; report case 09 separately as
+   ambiguous.
+
+The existing `results-template.csv` predates the provenance fields and the
+existing `results.csv` lacks per-call timestamps, session IDs, exact model
+identity/configuration, and raw outputs. See the audit in
+`../../docs/eval/review-eval.md`; do not fill missing historical fields from
+memory or infer them from the `session-default` label.
 
 ## The review prompt
 

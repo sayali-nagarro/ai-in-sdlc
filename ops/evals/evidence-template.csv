@@ -1,0 +1,1 @@
+run_number,condition,prompt_version,case,timestamp_utc,session_id,model_provider,model_name,model_version,agent_mode,configuration,workspace_context,tools_available,prompt_sha256,diff_sha256,exact_prompt_file,raw_output_file,verdict,confidence,scorer,scored_at_utc,notes

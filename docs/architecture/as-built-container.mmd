@@ -1,0 +1,34 @@
+flowchart LR
+    user([Approver or Admin in browser<br/>N01])
+
+    subgraph process["ASP.NET Core application process [N02]"]
+        static["Static UI assets: index.html, app.js, styles.css<br/>N03"]
+        middleware["SessionAuthMiddleware<br/>N04"]
+        auth["AuthController<br/>N05"]
+        demoUsers["DemoUsersOptions from appsettings.json<br/>N06"]
+        sessions[("SessionStore<br/>singleton, in-memory dictionary<br/>N07")]
+        invoices["InvoicesController<br/>N08"]
+        approvals["ApprovalsController<br/>N09"]
+        roleFilter["RequireRoleAttribute<br/>N10"]
+        handle["ApiControllerBase.Handle<br/>N11"]
+        service["ApprovalService<br/>N12"]
+        repository{{"IInvoiceRepository<br/>N13"}}
+        memory[("InMemoryInvoiceRepository<br/>singleton List with process-local lock<br/>N14")]
+    end
+
+    user -->|"GET / for static UI [E01]"| static
+    user -->|"HTTP /api requests with bearer session [E02]"| middleware
+    middleware -->|"Get(token) [E03]"| sessions
+    middleware -->|"forwards login (session-exempt) [E04]"| auth
+    middleware -->|"valid session; forwards API call [E05]"| invoices
+    middleware -->|"valid session; forwards API call [E06]"| approvals
+    auth -->|"credential comparison [E07]"| demoUsers
+    auth -->|"Create / Remove session [E08]"| sessions
+    invoices -.->|"role filter on Admin-only Delete [E09]"| roleFilter
+    approvals -.->|"class-level Approver/Admin role filter [E10]"| roleFilter
+    invoices -->|"Handle Submit; direct invoice queries and mutations [E11]"| handle
+    approvals -->|"Handle Approve / Reject [E12]"| handle
+    handle -->|"executes service delegate [E13]"| service
+    invoices -->|"GetAll, GetById, Add, Remove [E14]"| repository
+    service -->|"GetById, Update [E15]"| repository
+    repository -.->|"DI binding in Program.cs [E16]"| memory

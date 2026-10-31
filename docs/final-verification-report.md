@@ -1,0 +1,57 @@
+# Final assignment verification report
+
+Status checked 2026-11-01. This report separates files and results verified in
+this checkout from historical claims, proposed designs, and outstanding work.
+“Complete” means evidence for the stated repository deliverable is present; it
+does not imply owner approval, production readiness, or third-party verification.
+
+## Deliverable checklist
+
+| Deliverable | Files changed / evidence | Verification performed and results | Remaining blockers |
+|---|---|---|---|
+| Architecture sources, citations, and inferred items | [As-built diagrams](./architecture/as-built.md), [target state](./architecture/target-state.md), [container source](./architecture/as-built-container.mmd), [approval sequence source](./architecture/as-built-approval-sequence.mmd), [target source](./architecture/target-state-container.mmd), [citation register](./architecture/architecture-citations.md), [inference register](./architecture/architecture-inferences.md), [investigation report](./architecture/investigation-report.md); refreshed PNGs in `docs/architecture/diagrams/` | Mermaid CLI 11.4.2 successfully rendered all three sources using the installed Google Chrome executable. A source-ID audit found 30 as-built-container IDs, 67 sequence IDs and 48 target IDs; none lacked a citation-register row. Target components explicitly identify SQL persistence, outbox/worker, PayEx and reconciliation as planned/not built; PayEx atomic idempotency remains a go-live dependency. | No blocking architecture syntax/citation gaps found. The target design remains proposed, not implemented or owner-approved. |
+| Architecture test and retained output | [Architecture test](../backend/tests/InvoiceApp.Tests/ArchitectureTests.cs), [test output](./architecture/architecture-test-output.txt) | Ran with .NET SDK 8.0.427: `dotnet test backend/tests/InvoiceApp.Tests/InvoiceApp.Tests.csproj --filter FullyQualifiedName~ArchitectureTests --logger 'console;verbosity=normal'`. **1 passed, 0 failed.** Full console output is retained. | None for the focused structural rule. This is not a full-suite run in this verification. |
+| Exactly-once decision record | [ADR 0001](./adr/0001-exactly-once-payex-submission.md), [target-state diagram](./architecture/target-state-container.mmd) | Reviewed all three options and the draft recommendation. The ADR covers duplicate approval events/requests, worker crashes and fencing, PayEx timeouts, Unknown retries, restarts, month-end backlog/capacity, and reconciliation after PayEx acceptance. It expressly says application-only exactly-once delivery is impossible and makes PayEx atomic idempotency or equivalent vendor-enforced duplicate detection a dependency. The section “Where the agent was wrong or useless” is present. | Draft only. Sandbox verification and fault/load tests are still required before this design can be treated as production-ready. PayEx contract, idempotency retention/conflict behavior, lookup consistency, reconciliation feed, and owner sign-off remain outstanding. Cost and effort figures are agent estimates, not measured quotes. |
+| One-page autonomy policy | [Autonomy policy](./policy/incident-first-response-autonomy.md), [retained one-page PDF](./policy/incident-first-response-autonomy.pdf) | Day one is L1 for summaries and L0 for everything else, justified by two of six engineers being new to the codebase. Includes levels, controls, promotion evidence, approval ownership and rollback. Rendered PDF opened with PDFKit and verified as exactly one page; text extraction confirmed the expected day-one and new-engineer rationale. The page was visually inspected. | None for the one-page artifact. |
+| Evaluation cases and results | [Review evaluation](./eval/review-eval.md), [recorded verdicts](../ops/evals/results.csv), [cases](../ops/evals/cases/), [future evidence template](../ops/evals/evidence-template.csv) | Audited the 12 case diffs: 10 original plus owner-provided cases 11 and 12. The CSV has 72 verdict rows (12 cases × 3 labeled runs × 2 prompts). Recorded three-run rates per prompt: 24/24 labeled defects caught, 0/24 missed, 0/9 false alarms; ambiguous case 09 is reported separately. | No evaluations were rerun. Raw model responses, per-run timestamps/session IDs, exact model/version and full configuration are absent. The selected v2 run is not provably chronological fourth or identical in all variables except prompt text. Treat rates as historical recorded verdicts, not independently reproducible model results. |
+| Risk audit | [Risk audit](./security/risk-audit.md), [.mcp.json](../.mcp.json), [browser sandbox Compose file](../tools/browser-sandbox/compose.yaml) | Lethal-trifecta decision and revisit triggers are recorded. Repository inspection shows Playwright MCP launches on the host; the allow-list is not a security boundary and Compose does not attach MCP to the internal network. | Egress isolation is not enforced/demonstrated. The recorded Docker network inspection could not connect to the local daemon, so no successful egress probe exists. Accountable owner is only specified as the service-owner role, not an individual. |
+| Measurement plan and baseline | [Measurement baseline](./measurement/baseline.md) | GitHub Actions API observation for 2026-10-31: 24 s and 31 s durations, median 27.5 s, n=2; run IDs and reproducible API endpoints/queries are documented. Lead time, change-failure rate and review turnaround are marked unavailable because the available query found 0 deployments and 0 PRs. Scenario-derived 31.3-minute and 33% figures are explicitly excluded from actual baselines. | Two CI runs on one day are not a production or stable CI baseline. Empty repository API results do not prove that no external deployment/review activity occurred. |
+| AI augmentation logs | [Readable log](./ai-augmentation-log.md), [historical JSONL](./ai-augmentation-log.jsonl), [verification JSONL addendum](./ai-augmentation-verification.jsonl) | The verification addendum records the available session ID, test-start timestamp, commands, results and limitations. The focused test output is retained separately. | Historical prompts, outputs, exact model identities, per-run timestamps and eval session details are missing. Earlier model-name claims (“GPT-6 Luna” and “Claude Sonnet 5.5”) are not independently verified. Current model identity was not exposed; logs are not complete historical transcripts. |
+| 8–10-minute demonstration video | [Demo script](./demo-script.md), [README](../README.md) | A timed, practical script is prepared, including the architecture, test, ADR, eval caveats, policy, risk, actual CI sample and AI log. | Not recorded, uploaded or linked. Remaining steps: record screen and narration following the 0:00–10:00 script; verify actual duration is 8–10 minutes; upload to an approved host; confirm link access; replace TODO placeholders in the script and README; update this checklist/report with the URL. |
+
+## Commands and checks executed
+
+- `dotnet --version` via the temporary `/tmp/dotnet/dotnet`: **8.0.427**.
+- `dotnet test backend/tests/InvoiceApp.Tests/InvoiceApp.Tests.csproj --filter FullyQualifiedName~ArchitectureTests --logger 'console;verbosity=normal'`: **passed 1/1**; output: [architecture-test-output.txt](./architecture/architecture-test-output.txt).
+- `PUPPETEER_SKIP_DOWNLOAD=true npx --yes @mermaid-js/mermaid-cli@11.4.2 --version`: **11.4.2**.
+- Mermaid rendering command pattern (repeated for each `.mmd` source and corresponding PNG): `PUPPETEER_SKIP_DOWNLOAD=true npx --yes @mermaid-js/mermaid-cli@11.4.2 -p mermaid-puppeteer-config.tmp.json -i <source.mmd> -o <diagram.png>`. All three renders succeeded. The temporary Puppeteer config used `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` and `--no-sandbox`; it was removed after rendering.
+- The autonomy policy was rendered from Markdown to HTML with an inline Python formatter, then to PDF using `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --headless --disable-gpu --no-sandbox --no-pdf-header-footer --print-to-pdf=docs/policy/incident-first-response-autonomy.pdf file:///tmp/autonomy-policy.html`. PDFKit verified `pageCount == 1`; extracted text contained the Day one section and the “new to the codebase” rationale. The PDF was visually inspected.
+- An inline Python audit compared Mermaid node/relationship IDs against citation-register entries: **0 uncovered IDs** across all sources.
+- An inline Swift/AppKit Markdown layout check reported 2,934 glyphs, all laid out in 462 points of a 504×696-point content box. No PDF/page-count artifact was generated.
+- `git diff --check`, JSONL parsing, local-link checks, artifact existence checks, and final worktree review passed after the documentation changes: no whitespace errors, invalid JSONL, broken local links, uncovered diagram IDs, or empty evidence artifacts were found.
+
+## Files changed in this close-out
+
+- Root: [README.md](../README.md).
+- Architecture: [as-built.md](./architecture/as-built.md), [target-state.md](./architecture/target-state.md), [architecture-citations.md](./architecture/architecture-citations.md), [architecture-inferences.md](./architecture/architecture-inferences.md), [investigation-report.md](./architecture/investigation-report.md), three `.mmd` sources, refreshed diagram PNGs and [architecture-test-output.txt](./architecture/architecture-test-output.txt).
+- Assignment evidence: [ADR](./adr/0001-exactly-once-payex-submission.md), [autonomy policy](./policy/incident-first-response-autonomy.md), [evaluation report](./eval/review-eval.md), [risk audit](./security/risk-audit.md), [measurement baseline](./measurement/baseline.md), [demo script](./demo-script.md), [AI logs](./ai-augmentation-log.md), [AI verification JSONL](./ai-augmentation-verification.jsonl), [handover checklist](./handover-checklist.md), [evaluation guidance](../ops/evals/README.md), and [evaluation evidence template](../ops/evals/evidence-template.csv).
+
+## Verified complete
+
+- All three canonical Mermaid sources rendered successfully; every diagram ID has citation-register coverage.
+- The target architecture separates existing code, planned components and scenario-only infrastructure.
+- The focused architecture test passed 1/1 and its full console output is retained.
+- The ADR documents the external PayEx idempotency dependency and the required failure/reconciliation cases.
+- Baseline claims exclude the invented scenario figures and report the small actual CI sample with provenance and limitations.
+- The autonomy policy states the conservative day-one level and its rationale; native Markdown layout fits in the checked one-page content box.
+- The autonomy policy has a retained, visually inspected PDF verified to contain exactly one page.
+- The demo script and handover materials state what remains instead of claiming a video exists.
+
+## Not complete or not independently verifiable
+
+- PayEx contract/sandbox guarantees, owner approval of the ADR, and production fault/load tests.
+- Browser-session network egress isolation and a successful probe; named individual accountable owner.
+- Reproducible evaluations with retained raw outputs, exact models/configuration and chronological three-plus-one evidence.
+- Complete historical AI prompts, outputs, identities and timestamps.
+- Recorded, uploaded and linked 8–10-minute video.
+- Production lead time, change-failure rate and review turnaround; all remain unavailable in available evidence.

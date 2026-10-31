@@ -9,7 +9,7 @@ Date: 2026-10-24. Owner: the service owner. Status: partly implemented; isolatio
 1. **Target design: remove legs 1 and 3 from the browser session.** It must use a throwaway checkout with no credentials or private data and network egress limited to the app. This isolation is not currently demonstrated.
 2. **The coding/incident-session risk acceptance is conditional, not verified.** It assumes no browser tool and no shell egress except the model endpoint, with developer approval for shell commands. Repository files do not establish that each developer's local tool settings enforce these conditions. The triggers that reopen this decision are listed under "Accepted risk, in writing".
 3. **Implemented as defense-in-depth only:** `.mcp.json` pins `@playwright/mcp@0.0.83` and adds `--isolated` and `--allowed-origins=http://localhost:5000`. The upstream documentation says the origin allow-list is not a security boundary.
-4. **Not demonstrated:** the actual Playwright MCP command launches `npx` on the host. `tools/browser-sandbox/compose.yaml` defines an internal network for the app service only; it does not launch or attach the MCP server to that network. No egress verification result is recorded. Until the MCP browser is actually isolated and tested, it retains an outbound path and must not be used in a session that can see secrets. This must be in place before the January go-live (revisit trigger 6).
+4. **Not demonstrated:** the actual Playwright MCP command launches `npx` on the host. `tools/browser-sandbox/compose.yaml` defines an internal network for the app service only; it does not launch or attach the MCP server to that network. On 2026-10-31, `docker network inspect invoice-browser-sandbox` could not connect to the local Docker daemon, so no egress probe was completed. The egress script is not a successful verification result. Until the MCP browser is actually isolated and tested, it retains an outbound path and must not be used in a session that can see secrets. This must be in place before production go-live (revisit trigger 6).
 
 ## What was audited
 
@@ -19,7 +19,7 @@ Date: 2026-10-24. Owner: the service owner. Status: partly implemented; isolatio
 - [tools/browser-sandbox/compose.yaml](../../tools/browser-sandbox/compose.yaml): an internal Docker network containing the app service only; it is not wired to the MCP server launch.
 - [AGENTS.md](../../AGENTS.md) and [CLAUDE.md](../../CLAUDE.md): instructions the agent reads. They are advice, not enforcement.
 - There is no permissions file in the repository (no `.claude/`, no `.vscode/`), so the shell, file and network permissions are whatever each developer's tool defaults to.
-- The remote is `git@github.com:NITIN1670/ai-in-sdlc-assignment.git`, so a developer machine that can pull can usually push.
+- The configured remote is `git@github.com:sayali-nagarro/ai-in-sdlc.git`; a developer machine with the corresponding SSH key can usually push.
 
 ## The three legs
 
@@ -66,7 +66,7 @@ I will revisit this when **any** of these happens:
 5. A security advisory is published for the Playwright MCP server or the agent tool in use.
 6. The egress rule for the browser session is not in place by the production date in January.
 
-Owner: the service owner. Review date: before the January go-live.
+Accountable owner: the service owner (individual not named in this repository). Review date: before production go-live and whenever a listed trigger occurs.
 
 ## What this audit did not do
 

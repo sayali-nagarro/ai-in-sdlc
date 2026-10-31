@@ -1,0 +1,71 @@
+flowchart LR
+    user([Approver or Admin browser<br/>EXISTING TN01])
+
+    subgraph current["EXISTING APPLICATION CODE"]
+        ui["Static UI assets<br/>EXISTING TN02"]
+        api["API controllers and session authentication<br/>EXISTING TN03"]
+        service["ApprovalService<br/>EXISTING TN04"]
+        seam{{"IInvoiceRepository<br/>EXISTING TN05"}}
+        memory[("InMemoryInvoiceRepository<br/>EXISTING TODAY; replaced in target TN06")]
+        ui -->|"browser API requests [TE02]"| api
+        api -->|"approval actions [TE03]"| service
+        service -->|"repository calls [TE04]"| seam
+        seam -.->|"current DI binding [TE05]"| memory
+    end
+    user -->|"HTTP [TE01]"| ui
+    user -->|"authenticated API requests [TE02]"| api
+
+    subgraph planned["JANUARY TARGET — PLANNED, NOT IMPLEMENTED"]
+        sqlRepo["SQL-backed repository<br/>class name and deployment unspecified TN07"]
+        db[("Azure SQL TN08")]
+        invoiceData[("Invoice state<br/>schema unspecified TN09")]
+        auditData[("Approval audit data<br/>append-only, 7-year retention TN10")]
+        outbox[("Transactional outbox data<br/>stable idempotency key TN11")]
+        worker["PayEx submission worker<br/>deployment location TBD TN12"]
+        payex["PayEx external service<br/>atomic deduplication contract unconfirmed; go-live gate TN13"]
+        resolver["Unknown-outcome resolver behavior<br/>process boundary TBD TN14"]
+        reconciliation["Daily reconciliation safety net<br/>mechanism and report TBD TN15"]
+        controls["Worker lease, heartbeat and circuit-breaker controls TN16"]
+        alerts["Required operational alerts<br/>pending age, Unknown count/age, dead letters, breaker state TN17"]
+        oncall["On-call engineer and runbook<br/>alert channel unspecified TN18"]
+        manualTool["Audited manual requeue tool<br/>implementation unspecified TN19"]
+
+        seam -.->|"future repository implementation [TE06]"| sqlRepo
+        sqlRepo -->|"approval, audit and outbox transaction [TE07]"| db
+        db ---|"invoice state [TE08]"| invoiceData
+        db ---|"approval audit [TE09]"| auditData
+        db ---|"payment intent [TE10]"| outbox
+        outbox -->|"claim row and commit before call [TE11]"| worker
+        worker -->|"submit with stable key [TE12]"| payex
+        payex -->|"success reference or ambiguous timeout [TE13]"| worker
+        worker -->|"record result in second transaction [TE14]"| db
+        controls -.->|"governs worker calls [TE15]"| worker
+        outbox -->|"Unknown rows [TE16]"| resolver
+        resolver -->|"contract-safe lookup or same-key replay [TE17]"| payex
+        reconciliation -.->|"comparison feed or API unspecified [TE18]"| payex
+        worker -.->|"required signals; implementation unspecified [TE19]"| alerts
+        alerts -.->|"delivery mechanism unspecified [TE20]"| oncall
+        manualTool -.->|"audited requeue only after evidence [TE21]"| outbox
+    end
+
+    proposed["PROPOSAL ONLY: rowversion / optimistic concurrency TN20"]
+    proposed -.->|"possible concurrency token [TE22]"| invoiceData
+
+    subgraph scenario["OPS SCENARIO EVIDENCE — NOT CONFIRMED JANUARY DESIGN"]
+        bus["Service Bus topic: invoice-events<br/>scenario says provisioned, unused by app TN21"]
+        notifications["notification-worker subscription<br/>scenario evidence TN22"]
+        archive["audit-archive subscription<br/>scenario evidence TN23"]
+        bus -->|"scenario subscription relationship [TE23]"| notifications
+        bus -->|"scenario subscription relationship [TE24]"| archive
+    end
+
+    outbox -.->|"conditional future event publishing only [TE25]"| bus
+
+    classDef existing fill:#d8f5d8,stroke:#2d7a2d,color:#000
+    classDef planned fill:#fde0e0,stroke:#b00020,stroke-dasharray:5 3,color:#000
+    classDef proposal fill:#fff2cc,stroke:#a67c00,stroke-dasharray:3 3,color:#000
+    classDef scenario fill:#eeeeee,stroke:#666,stroke-dasharray:5 3,color:#000
+    class user,ui,api,service,seam,memory existing
+    class sqlRepo,db,invoiceData,auditData,outbox,worker,payex,resolver,reconciliation,controls,alerts,oncall,manualTool planned
+    class proposed proposal
+    class bus,notifications,archive scenario

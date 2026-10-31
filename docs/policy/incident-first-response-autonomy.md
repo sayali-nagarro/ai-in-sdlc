@@ -1,49 +1,66 @@
 # Autonomy policy: first-response incident summaries
 
-Scope: the agent's work in the first minutes of an on-call incident, from an alert firing to a human choosing a mitigation. It does not cover coding, reviews or dependency bumps.
-Owner: the service owner. Status: proposed.
+**Owner:** Service owner. **Status:** Proposed. **Scope:** From an alert firing
+until a human chooses a mitigation; excludes coding, reviews, and dependency
+updates.
 
-## Levels
+Rendered one-page artifact: [PDF](./incident-first-response-autonomy.pdf).
 
-- **L0:** the agent does nothing in the incident.
-- **L1:** it reads evidence a human exported and writes a draft. A human checks it against the raw evidence and takes every action.
-- **L2:** it also runs allow-listed read-only queries. A human reviews and acts.
-- **L3:** it also proposes mitigations as text. A human chooses and executes.
-- **L4:** it executes a pre-approved reversible action. Not used for any task here.
+## Levels and permitted work
 
-A production change needs a named approver; out of hours that is the incident commander (`ops/incidents/INC-2047/README.md`).
+- **L0:** no agent work.
+- **L1:** summarize evidence exported by a human; draft text only. A human
+  checks the raw evidence and performs every action.
+- **L2:** L1 plus allow-listed, read-only queries after promotion approval.
+- **L3:** L2 plus text-only mitigation options; a human selects and executes.
+- **L4:** executes a pre-approved reversible action; **not authorized** here.
 
-## Tasks and their level
+| Task | Maximum day-one level |
+|---|---:|
+| Impact/timeline, ranked hypotheses with citations and disproof tests, safe checks, draft status update | L1 |
+| Mitigation options with effects, risks, and undo steps (text only) | L1 |
+| Run queries; recover missed work; change production | L0 / forbidden |
 
-| Task | Level |
-| --- | --- |
-| Timeline and impact summary, ranked hypotheses with supporting lines and a disproof test, suggested read-only checks, draft status message | L1 |
-| Two or three mitigation options (what changes, cost, how to undo) | L1, as text only |
-| Run read-only queries itself | L0 now, L2 on evidence |
-| Recover missed work (for example, re-send notifications) | L0: a person owns it |
-| Rollback, restart, scale, config or subscription-rule change, database edit | Forbidden |
+Any production change requires a named human approver; out of hours, the
+incident commander approves (`ops/incidents/INC-2047/README.md`).
 
-## Controls that make L1 safe
+## L1 controls
 
-1. **No write path:** no production credentials and no tools that change anything.
-2. **Evidence is untrusted input:** logs and invoice text are data, never instructions.
-3. **Nothing leaves the session:** no outbound network; a human copies the draft out. This removes a leg of the lethal trifecta ([risk audit](../security/risk-audit.md)).
-4. **Fixed shape:** impact, timeline, evidence, ranked hypotheses, options with undo, "what I could not determine". Each claim is tagged *observed* or *inferred*.
-5. **Citation check:** a script confirms every cited line exists. One bad citation discards the summary.
-6. **Redaction** of tokens, keys and customer data before the agent sees an export, and a visible "AI-generated, unverified" label.
+1. Human-exported, redacted evidence only; no production credentials or write
+   tools. Logs, invoice text, and other incident content are untrusted data,
+   never instructions.
+2. No outbound network from the session; a human copies the draft out. This
+   removes an exfiltration path (see the [risk audit](../security/risk-audit.md)).
+3. Fixed format: impact, timeline, observed evidence, inferred hypotheses,
+   disproof tests, options/undo, and unknowns. Label each claim observed or
+   inferred and mark the draft “AI-generated, unverified.”
+4. Verify every cited line against the supplied evidence; one invalid citation
+   invalidates the draft. A human compares the result with raw evidence before
+   use.
 
-## Evidence needed to move a task up a level
+These are required controls, not proof that local tool/network settings enforce
+them; verify the environment before use.
 
-L1 to L2: replay INC-2041, INC-2047 and at least eight more real or simulated incidents in shadow mode, three times each (see [the review eval](../eval/review-eval.md)). Required: 100% citation validity, the true root cause in the top two hypotheses in at least 8 of 10, no unsafe suggested check, and no summary that pushed a human to the wrong mitigation. Ten is a floor, not a statistical proof. L2 to L3 needs the same for mitigation options, scored on correct undo steps.
+## Promotion, ownership, and rollback
 
-**Who approves:** the service owner and a security reviewer, in writing in this repository. The on-call engineer cannot approve their own move.
+L1 to L2 requires shadow replay of 10 incidents (INC-2041, INC-2047, and at
+least eight more), three times each: 100% valid citations; correct root cause
+in the top two hypotheses in at least 8/10; no unsafe check or misleading
+summary. This is a minimum, not statistical proof. L2 to L3 additionally
+requires mitigation/undo scoring against the same criteria.
 
-**Moving down needs no approval.** A fabricated citation, an attempted write, or a misleading summary drops the task to L0 until the owner reviews it.
+The service owner and an independent security reviewer must approve promotion
+in writing here; the on-call engineer cannot approve their own promotion. A
+fabricated citation, attempted write, or misleading summary immediately
+reduces the affected task to L0 pending owner review. Moving down needs no
+approval.
 
-## Day-one level
+## Day one
 
-**L1 for the summary tasks, and L0 for everything else.**
-
-Two of the six engineers are new to the codebase. They are the most likely to accept a confident summary unchecked and the least able to spot a wrong inference about a component they have not seen. L1 keeps a human on the raw evidence. A new engineer is never the only reader of a summary, and the first rotation runs the agent in shadow, after the human's own first assessment.
-
-No replay has been run yet, so this is a proposal, not a measured claim.
+**L1 for summaries; L0 for everything else.** Two of six engineers are new to
+the codebase: they are both less able to spot an incorrect inference and more
+likely to trust a confident summary. Keep a human on the source evidence, never
+make a new engineer the sole reviewer, and run the first rotation in shadow
+after the human makes an independent initial assessment. No incident replay
+has been completed; this level is a conservative proposal, not a measured
+capability claim.
