@@ -52,6 +52,7 @@ AGENTS.md                 conventions for AI coding agents
 - [Risk audit](docs/security/risk-audit.md)
 - [Baseline measurement plan](docs/measurement/baseline.md)
 - [AI augmentation log](docs/ai-augmentation-log.md)
+- [Handover checklist](docs/handover-checklist.md) and [structured AI session log](docs/ai-augmentation-log.jsonl)
 
 ## Use cases
 

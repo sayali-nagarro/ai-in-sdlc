@@ -1,12 +1,23 @@
-# Review evaluation: three runs per condition
+# Review evaluation: baseline runs and changed-prompt comparison
 
 Raw rows: [ops/evals/results.csv](../../ops/evals/results.csv) (72 rows: 12 cases x 3 runs x 2 prompts; the 12 rows for case-11 and case-12 are from the re-run after those cases were replaced).
 
+## Handover run set
+
+The requested minimum comparison is three baseline runs plus a separate run with one changed variable. The controlled variable is the prompt; the model is held at the session default and is not identified more specifically in the raw rows.
+
+| Role in handover | Rows selected | Variable changed | Recorded outcome |
+| --- | --- | --- | --- |
+| Baseline | v1, runs 1–3, all 12 cases | None; baseline prompt | 24/24 defect catches, 9/9 clean cases correctly clean, 0/9 false alarms; case 09 is reported separately |
+| Changed-variable run | v2, run 1, all 12 cases | Added the concrete-trigger sentence described below | 8/8 defects caught, 3/3 clean cases correctly clean, 0/3 false alarms; case 09's README finding was withheld |
+
+The raw file also contains v2 runs 2 and 3. They are additional replications, not required to interpret the selected three-plus-one comparison; the full-condition summary below includes all six runs per case. The three repetitions reuse identical diffs and are not independent samples. The exact model identity and timestamps for individual review calls were not captured.
+
 ## Setup
 
-- The ten fixed cases in `ops/evals/cases` plus two supplied by the repository owner (`case-11`, `case-12`). Both were re-run after replacing earlier cases that I had written myself.
+- The ten original cases in `ops/evals/cases` plus two supplied by the repository owner (`case-11`, `case-12`). Both were re-run after replacing earlier cases that I had written myself.
 - Every case was reviewed in a fresh sub-agent session that was given only the diff and the prompt, with an instruction not to use tools.
-- Same model for every call (the session default). The model was not varied.
+- Same session-default model for every call, as recorded by the runner. The model was not varied, but its exact identity was not captured in the results rows.
 - **v1** is the exact prompt from `ops/evals/README.md`.
 - **v2** is v1 plus one sentence: "For each finding also give a concrete input or sequence of events that triggers the failure; if you cannot name one, do not report it."
 - I wrote the v2 sentence and the hypothesis before running v2: false alarms should fall and the caught rate should not. I chose it because it does not name any defect class, so it cannot be tuned to these cases.

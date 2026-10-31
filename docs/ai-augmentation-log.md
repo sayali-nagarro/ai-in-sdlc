@@ -1,6 +1,6 @@
 # AI augmentation log
 
-A record of where AI was used to produce the assignment deliverables, what it was given, what was kept, and how it was checked. Written from the working session. The raw transcripts are in the VS Code chat session and its debug log folder, and are not copied here.
+A record of where AI was used to produce the assignment deliverables, what it was given, what was kept, and how it was checked. Written from the working session. The raw transcripts are in the VS Code chat session and its debug log folder, and are not copied here. A machine-readable session entry is maintained in [ai-augmentation-log.jsonl](ai-augmentation-log.jsonl); it records only evidence available for that session and labels missing historical details as not captured.
 
 ## Tools and models
 
@@ -13,7 +13,7 @@ A record of where AI was used to produce the assignment deliverables, what it wa
 | # | Task | AI use | Input given | Kept | How it was checked | Result |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Understand the repo and evidence | 3 exploration sub-agents (incident packs; pipeline, evals, use cases and e2e; backend code gaps) | Read-only access to the repo | Overall picture, incident timelines, list of production gaps | I re-read the code and several evidence files myself | Several claims were wrong (see "Errors found") |
-| 2 | As-built diagrams | I read `Program.cs`, controllers, `Auth/`, `ApprovalService`, repository and wrote the Mermaid and citations | The source files | Both diagrams, citation table, "Inferred" list | Line numbers re-checked with a search; 7 were off by one and were fixed | Diagrams not rendered, syntax checked by eye only |
+| 2 | As-built diagrams | I read `Program.cs`, controllers, `Auth/`, `ApprovalService`, repository and wrote the Mermaid and citations | The source files | Both diagrams, citation table, "Inferred" list | Line numbers re-checked with a search; 7 were off by one and were fixed | Initial log says diagrams were not rendered and syntax was checked by eye. PNGs are now present in `docs/architecture/diagrams/`, but their render date and command provenance were not recorded; do not claim the initial check itself was a render validation |
 | 3 | Target-state diagram | Drafted by me from the brief and `ops/` | Brief, `servicebus-status.txt`, INC-2041 diff | Diagram, citations, "Inferred or proposed" list | Topic and subscription names confirmed with a search | Table and class names are my proposals |
 | 4 | Architecture test | Written by me | `AGENTS.md` rule, test project layout | `ArchitectureTests.cs` | Editor reports no errors; later run with the documented command | **Ran and passed** (1 test; full suite 8 of 8). Failure case demonstrated by temporarily adding an ASP.NET Core reference to Domain: the test failed, then the change was reverted and the suite passed again |
 | 5 | Review eval: truth key | Written by me; the sub-agent's earlier labels were not trusted | The 10 case diffs, repo conventions | Key for 12 cases, scoring rules fixed before the runs | Re-derived each case | Case 09 left as ambiguous |
@@ -24,6 +24,7 @@ A record of where AI was used to produce the assignment deliverables, what it wa
 | 10 | Autonomy policy | Written by me | INC-2041 and INC-2047 README constraints | Levels, tasks, controls, promotion evidence, day-one level | Constraints quoted from the packs | No replay has been run |
 | 11 | Risk audit | Written by me; web fetch of the Playwright MCP README; registry query for the version | `.mcp.json`, `AGENTS.md`, upstream docs | Legs table, decision, accepted risk | Confirmed upstream says the allow-list is not a security boundary | `.mcp.json` edited (pinned version, `--isolated`, `--allowed-origins`) |
 | 12 | Measurement baseline | Python script over the CI timings; `git log`; `gh auth status` | `run-timings.csv`, git history | CI duration figures, release and incident count | Script output read directly | `gh` token invalid, so review turnaround and real lead time not captured |
+| 13 | Handover documentation close-out | Read repository handover files, corrected stale claims, and added a checklist and JSONL session record | Existing assignment artifacts and the handover requirements | Evaluation three-plus-one comparison, updated case guidance, evidence caveats, risk-status correction, and checklist | Searched for stale wording; parsed JSONL; reviewed the relevant paths; architecture test run recorded in `ai-augmentation-log.jsonl` | Architecture test passed 1/1 on 2026-10-31. The demo video remains outstanding; no transcript or video URL was supplied |
 
 ## Errors found in AI output
 
@@ -50,3 +51,5 @@ Corrections I made after checking against the code or the evidence files:
 
 - Review and edit the decision record, and replace the probe and sessions with your own if you ran them.
 - Confirm the PayEx assumptions with the vendor.
+- Record the 8–10-minute demo video, upload it, and replace the TODO link in the README and demo script.
+- Review the handover checklist and provide the outstanding owner approvals and verification evidence.

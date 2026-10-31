@@ -8,7 +8,7 @@ production. Nothing here runs as part of the application or its tests.
 | `incidents/INC-2041` | Approvals slow and failing. Logs, metrics and the deploy diff for a completed incident window. |
 | `incidents/INC-2047` | Approved invoices not triggering notifications. A live incident, read-only output only. |
 | `pipeline` | The service's full CI pipeline and per-step timings for the last 20 runs. |
-| `evals` | Ten fixed review cases and a results template. |
+| `evals` | Twelve review cases, raw review results, and a results template. The completed results contain three runs for each of two prompt versions. |
 
 ## A note on the scenario
 

@@ -4,18 +4,19 @@ The lethal trifecta is an agent that has all three of: (1) access to private dat
 
 ## Decision
 
-Date: 2026-10-24. Owner: the service owner. Status: partly implemented.
+Date: 2026-10-24. Owner: the service owner. Status: partly implemented; isolation not demonstrated.
 
-1. **Redesign the browser session to remove legs 1 and 3.** The Playwright MCP session runs with no credentials and no private data, and with network egress limited to the app on `localhost:5000`. No other session gets a browser tool.
-2. **Accept legs 1 and 2 in the coding and incident session**, in writing, because leg 3 is removed there (no browser, shell network off except the model endpoint) and each shell command is approved by the developer. The triggers that reopen this decision are listed under "Accepted risk, in writing".
-3. **Done now:** `.mcp.json` pins `@playwright/mcp@0.0.83`, adds `--isolated` and `--allowed-origins=http://localhost:5000`.
-4. **Not done:** the container or VM egress rule. Until it exists, the browser session still has leg 3, so the redesign is incomplete and the browser tool should not be used in a session that can see secrets. This must be in place before the January go-live (revisit trigger 6).
+1. **Target design: remove legs 1 and 3 from the browser session.** It must use a throwaway checkout with no credentials or private data and network egress limited to the app. This isolation is not currently demonstrated.
+2. **The coding/incident-session risk acceptance is conditional, not verified.** It assumes no browser tool and no shell egress except the model endpoint, with developer approval for shell commands. Repository files do not establish that each developer's local tool settings enforce these conditions. The triggers that reopen this decision are listed under "Accepted risk, in writing".
+3. **Implemented as defense-in-depth only:** `.mcp.json` pins `@playwright/mcp@0.0.83` and adds `--isolated` and `--allowed-origins=http://localhost:5000`. The upstream documentation says the origin allow-list is not a security boundary.
+4. **Not demonstrated:** the actual Playwright MCP command launches `npx` on the host. `tools/browser-sandbox/compose.yaml` defines an internal network for the app service only; it does not launch or attach the MCP server to that network. No egress verification result is recorded. Until the MCP browser is actually isolated and tested, it retains an outbound path and must not be used in a session that can see secrets. This must be in place before the January go-live (revisit trigger 6).
 
 ## What was audited
 
 `ops/README.md` has no agent-setup section (it ends at "No answers here"). With your agreement I audited the agent configuration that is actually in the repository:
 
 - [.mcp.json](../../.mcp.json): the Playwright MCP server, which controls a browser.
+- [tools/browser-sandbox/compose.yaml](../../tools/browser-sandbox/compose.yaml): an internal Docker network containing the app service only; it is not wired to the MCP server launch.
 - [AGENTS.md](../../AGENTS.md) and [CLAUDE.md](../../CLAUDE.md): instructions the agent reads. They are advice, not enforcement.
 - There is no permissions file in the repository (no `.claude/`, no `.vscode/`), so the shell, file and network permissions are whatever each developer's tool defaults to.
 - The remote is `git@github.com:NITIN1670/ai-in-sdlc-assignment.git`, so a developer machine that can pull can usually push.
@@ -26,7 +27,7 @@ Date: 2026-10-24. Owner: the service owner. Status: partly implemented.
 | --- | --- | --- |
 | 1. Private data | **Yes, and growing** | The agent runs as the developer. It can reach the developer's environment variables, SSH key for the Git remote, and any cloud login on that machine. Today the repository holds only demo credentials (`appsettings.json:9-12`). From January it will hold or touch a PayEx key, a SQL connection string, and incident logs with customer data |
 | 2. Untrusted content | **Yes** | The browser tool can open any page. The web UI also shows `CustomerName`, which any user who can create an invoice controls (`InvoicesController.cs:48-66`), so an agent driving the UI reads attacker-written text. Pull request text and incident logs are also written by others |
-| 3. Outbound path | **Yes** | The browser can navigate to any origin and submit forms. The shell can run `curl` and `git push`. `@playwright/mcp@latest` was also unpinned, so a new release would run on the next start with no review |
+| 3. Outbound path | **Yes** | The browser can navigate to origins and submit forms; the host-launched MCP process is not attached to the internal Docker network. The shell can run `curl` and `git push`. The origin allow-list is not a network boundary |
 
 All three legs are present in one session. That is the finding.
 
@@ -36,25 +37,25 @@ I expected to remove the outbound leg with the Playwright origin allow-list. The
 
 ## Redesign: remove legs by splitting the sessions
 
-The rule: no single session gets more than two legs.
+The target rule: no single session gets more than two legs. The table describes the intended design, not a verified property of the current setup.
 
 | Session | Leg 1 private data | Leg 2 untrusted content | Leg 3 outbound |
 | --- | --- | --- | --- |
-| **Browser / e2e session** (Playwright MCP) | **Removed**: throwaway checkout, no SSH agent, no cloud login, no secrets in the environment | Present: pages and invoice text | **Removed at the network layer**: runs in a container or VM whose only reachable address is the app on `localhost:5000`. No shell tool and no `git push` in this session |
-| **Coding / incident session** | Present | Present: reads PRs and logs | Removed for the browser (no browser tool). Shell network is off except the model endpoint |
+| **Browser / e2e session** (target) | To be removed: throwaway checkout, no SSH agent, no cloud login, no secrets in the environment | Present: pages and invoice text | To be removed at the network layer: MCP must run in a container or VM restricted to the app. No shell tool and no `git push` in this session. Not yet wired or verified |
+| **Coding / incident session** (target) | Present | Present: reads PRs and logs | Intended to be removed for browsing; local tool permissions and shell egress are not verified by repository artifacts |
 
 Done now in this repository:
 
 - [.mcp.json](../../.mcp.json) pins `@playwright/mcp@0.0.83` (the version the registry reported as latest today, checked with `npm view`), adds `--isolated` so no profile is kept on disk, and adds `--allowed-origins=http://localhost:5000` as a second layer.
 
-Not done, because it lives outside the repository and needs your decision:
+Not done or demonstrated:
 
-- The container or VM egress rule that makes the browser session unable to reach anything but the app. Without it, the browser session still has leg 3 and the redesign is incomplete. This is the item that matters most.
+- The container or VM egress rule wired to the actual Playwright MCP process, making it unable to reach anything but the app. The existing Compose file only defines the app service. Without this wiring and a recorded verification, the browser session still has leg 3 and the redesign is incomplete. This is the item that matters most.
 - Per-developer tool settings that disable auto-approval of shell and network commands.
 
 ## Accepted risk, in writing
 
-The coding and incident session keeps legs 1 and 2: it must read untrusted text (pull requests, logs) while able to see private data. I accept this, because the agent cannot send data out (leg 3 removed) and every shell command is approved by the developer.
+The coding and incident session is intended to keep legs 1 and 2: it must read untrusted text (pull requests, logs) while able to see private data. This risk acceptance is conditional on leg 3 being removed by local tool controls and developer approval for shell commands. Those controls have not been verified from repository evidence, so this audit does not claim the outbound path is currently removed.
 
 I will revisit this when **any** of these happens:
 
@@ -71,4 +72,4 @@ Owner: the service owner. Review date: before the January go-live.
 
 - It did not test the setup with a real injection attempt. Doing so would be the strongest evidence that the split holds.
 - It did not inspect any developer's local tool settings.
-- The container egress rule is described, not built.
+- An internal Docker network and egress-check script exist, but the MCP process is not attached to that network and no successful verification output is recorded. Egress isolation is therefore not enforced/demonstrated by the current repository setup.

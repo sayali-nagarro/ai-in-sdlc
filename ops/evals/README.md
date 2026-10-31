@@ -1,8 +1,10 @@
 # Review eval
 
-Ten fixed cases for measuring how well a review prompt performs on this
-codebase. Each case is a diff in `cases/`. Some contain a defect and some do
-not; which is which is not recorded here.
+Twelve review cases for measuring how well a review prompt performs on this
+codebase. Cases 01–10 are the original fixed set; cases 11 and 12 were supplied
+by the repository owner. Each case is a diff in `cases/`. Some contain a defect
+and some do not; the scoring key is documented separately in
+`../../docs/eval/review-eval.md`.
 
 ## Why run it
 
@@ -23,11 +25,16 @@ that decides whether anyone keeps using the reviewer.
    change the answer.
 2. Give the agent the case diff and the review prompt below. Nothing else.
 3. Record what it reported in `results.csv`, using `results-template.csv` as
-   the starting point.
+   the 12-case, three-run starter for one prompt condition. Duplicate and
+   update `prompt_version` for a changed-variable condition.
 4. Repeat the whole set three times. Output varies between runs, so a single
    pass gives you an anecdote rather than a rate.
-5. Change exactly one thing — the prompt, the model, or the context file —
-   and run the set again.
+5. To meet the handover comparison, first complete three runs of the baseline
+   prompt, then run the full set once with exactly one changed variable. Record
+   that changed-variable run separately. Further repetitions are useful but
+   do not replace labeling the designated comparison. The completed dataset
+   contains three runs for each of v1 and v2; see the handover table in
+   `../../docs/eval/review-eval.md`.
 
 ## The review prompt
 
